@@ -1,9 +1,3 @@
-import streamlit as st
-
-# HTML 내용을 문자열로 준비합니다.
-# 실제 사용 시에는 전체 HTML 코드를 이 안에 넣어야 합니다.
-# 편의상 파일에서 읽어올 수도 있습니다.
-html_code = """
 <!DOCTYPE html>
 <html lang="ko">
 <head>
@@ -13,11 +7,11 @@ html_code = """
   <style>
     body {
       margin: 0;
-      background: #1e1e1e; /* Streamlit 배경과 다를 수 있으므로 iframe 내에서만 적용됨 */
+      background: #1e1e1e;
       color: white;
       font-family: 'Arial', sans-serif;
       display: flex;
-      min-height: 100vh; /* iframe 높이에 맞춰 조정될 수 있음 */
+      min-height: 100vh;
     }
     .left-panel {
       flex: 4;
@@ -37,7 +31,7 @@ html_code = """
       margin: 10px 0;
     }
     .canvas {
-      height: 300px; /* 고정 높이 */
+      height: 300px;
       background: #111;
       border: 2px solid #444;
       position: relative;
@@ -60,10 +54,9 @@ html_code = """
       border: 2px solid #444;
       padding: 8px;
       font-size: 14px;
-      flex-grow: 1; /* left-panel 내에서 유효 */
+      flex-grow: 1;
       overflow-y: auto;
       margin-bottom: 10px;
-      min-height: 150px; /* 추천 영역 최소 높이 확보 */
     }
     .buttons {
       display: flex;
@@ -84,9 +77,7 @@ html_code = """
     }
     .periodic-container {
       overflow-y: auto;
-      /* max-height는 iframe 높이에 따라 달라지므로 주의 */
-      /* calc(100vh - 50px)는 iframe 내에서는 다르게 동작할 수 있음 */
-      max-height: 500px; /* 예시 고정 높이, iframe 높이 고려 필요 */
+      max-height: calc(100vh - 50px);
     }
     .table-wrapper {
       display: grid;
@@ -200,33 +191,70 @@ html_code = """
     const saveBtn = document.getElementById('saveBtn');
     const resetBtn = document.getElementById('resetBtn');
 
+    // 주기별 색상 매핑 (1~7주기)
     const periodColors = {
-      1: "#ff9ff3", 2: "#feca57", 3: "#ff6b6b", 4: "#1dd1a1",
-      5: "#54a0ff", 6: "#5f27cd", 7: "#576574"
+      1: "#ff9ff3", // 분홍
+      2: "#feca57", // 노랑
+      3: "#ff6b6b", // 빨강
+      4: "#1dd1a1", // 초록
+      5: "#54a0ff", // 파랑
+      6: "#5f27cd", // 보라
+      7: "#576574"  // 회색
     };
 
+    // 원소 정보 확장 (1~36번)
+    // [기호, 이름, 족, 주기]
+    // (편의상 elementsData로 변경하여 elements 변수명 혼동 방지)
     const elementsData = {
-      1: ['H', '수소', 1, 1], 2: ['He', '헬륨', 18, 1], 3: ['Li', '리튬', 1, 2],
-      4: ['Be', '베릴륨', 2, 2], 5: ['B', '붕소', 13, 2], 6: ['C', '탄소', 14, 2],
-      7: ['N', '질소', 15, 2], 8: ['O', '산소', 16, 2], 9: ['F', '플루오린', 17, 2],
-      10: ['Ne', '네온', 18, 2], 11: ['Na', '나트륨', 1, 3], 12: ['Mg', '마그네슘', 2, 3],
-      13: ['Al', '알루미늄', 13, 3], 14: ['Si', '규소', 14, 3], 15: ['P', '인', 15, 3],
-      16: ['S', '황', 16, 3], 17: ['Cl', '염소', 17, 3], 18: ['Ar', '아르곤', 18, 3],
-      19: ['K', '칼륨', 1, 4], 20: ['Ca', '칼슘', 2, 4], 21: ['Sc', '스칸듐', 3, 4],
-      22: ['Ti', '티타늄', 4, 4], 23: ['V', '바나듐', 5, 4], 24: ['Cr', '크롬', 6, 4],
-      25: ['Mn', '망간', 7, 4], 26: ['Fe', '철', 8, 4], 27: ['Co', '코발트', 9, 4],
-      28: ['Ni', '니켈', 10, 4], 29: ['Cu', '구리', 11, 4], 30: ['Zn', '아연', 12, 4],
-      31: ['Ga', '갈륨', 13, 4], 32: ['Ge', '저마늄', 14, 4], 33: ['As', '비소', 15, 4],
-      34: ['Se', '셀레늄', 16, 4], 35: ['Br', '브로민', 17, 4], 36: ['Kr', '크립톤', 18, 4]
+      1: ['H', '수소', 1, 1],
+      2: ['He', '헬륨', 18, 1],
+      3: ['Li', '리튬', 1, 2],
+      4: ['Be', '베릴륨', 2, 2],
+      5: ['B', '붕소', 13, 2],
+      6: ['C', '탄소', 14, 2],
+      7: ['N', '질소', 15, 2],
+      8: ['O', '산소', 16, 2],
+      9: ['F', '플루오린', 17, 2],
+      10: ['Ne', '네온', 18, 2],
+      11: ['Na', '나트륨', 1, 3],
+      12: ['Mg', '마그네슘', 2, 3],
+      13: ['Al', '알루미늄', 13, 3],
+      14: ['Si', '규소', 14, 3],
+      15: ['P', '인', 15, 3],
+      16: ['S', '황', 16, 3],
+      17: ['Cl', '염소', 17, 3],
+      18: ['Ar', '아르곤', 18, 3],
+      19: ['K', '칼륨', 1, 4],
+      20: ['Ca', '칼슘', 2, 4],
+      21: ['Sc', '스칸듐', 3, 4],
+      22: ['Ti', '티타늄', 4, 4],
+      23: ['V', '바나듐', 5, 4],
+      24: ['Cr', '크롬', 6, 4],
+      25: ['Mn', '망간', 7, 4],
+      26: ['Fe', '철', 8, 4],
+      27: ['Co', '코발트', 9, 4],
+      28: ['Ni', '니켈', 10, 4],
+      29: ['Cu', '구리', 11, 4],
+      30: ['Zn', '아연', 12, 4],
+      31: ['Ga', '갈륨', 13, 4],
+      32: ['Ge', '저마늄', 14, 4],
+      33: ['As', '비소', 15, 4],
+      34: ['Se', '셀레늄', 16, 4],
+      35: ['Br', '브로민', 17, 4],
+      36: ['Kr', '크립톤', 18, 4]
     };
 
+    // 추천 화합물 데이터베이스 (기본적인 화합물)
     const commonCompounds = {
       'H2O': { name: '물', elements: { 'H': 2, 'O': 1 } },
       'NaCl': { name: '소금 (염화나트륨)', elements: { 'Na': 1, 'Cl': 1 } },
       'CO2': { name: '이산화탄소', elements: { 'C': 1, 'O': 2 } },
-      'H2': { name: '수소 분자', elements: { 'H': 2 } }, 'O2': { name: '산소 분자', elements: { 'O': 2 } },
-      'NH3': { name: '암모니아', elements: { 'N': 1, 'H': 3 } }, 'CH4': { name: '메탄', elements: { 'C': 1, 'H': 4 } },
-      'H2SO4': { name: '황산', elements: { 'H': 2, 'S': 1, 'O': 4 } }, 'HCl': { name: '염산', elements: { 'H': 1, 'Cl': 1 } },
+      'H2': { name: '수소 분자', elements: { 'H': 2 } },
+      'O2': { name: '산소 분자', elements: { 'O': 2 } },
+      'NH3': { name: '암모니아', elements: { 'N': 1, 'H': 3 } },
+      'CH4': { name: '메탄', elements: { 'C': 1, 'H': 4 } },
+      'H2SO4': { name: '황산', elements: { 'H': 2, 'S': 1, 'O': 4 } },
+      'HCl': { name: '염산', elements: { 'H': 1, 'Cl': 1 } },
       'NaOH': { name: '수산화나트륨', elements: { 'Na': 1, 'O': 1, 'H': 1 } },
       'CaCO3': { name: '탄산칼슘', elements: { 'Ca': 1, 'C': 1, 'O': 3 } },
       'Fe2O3': { name: '산화철', elements: { 'Fe': 2, 'O': 3 } },
@@ -234,36 +262,59 @@ html_code = """
       'N2': { name: '질소 분자', elements: { 'N': 2 } }
     };
 
+    // 원소별 추천 화합물 (원소 기호 -> 추천 화합물 배열)
     const elementCompounds = {};
+    
+    // 원소별 추천 화합물 생성
     Object.keys(commonCompounds).forEach(formula => {
       const compound = commonCompounds[formula];
       Object.keys(compound.elements).forEach(element => {
-        if (!elementCompounds[element]) elementCompounds[element] = [];
-        if (!elementCompounds[element].includes(formula)) elementCompounds[element].push(formula);
+        if (!elementCompounds[element]) {
+          elementCompounds[element] = [];
+        }
+        if (!elementCompounds[element].includes(formula)) {
+          elementCompounds[element].push(formula);
+        }
       });
     });
 
+    // 현재 캔버스의 원소 추적
     let symbolCount = {};
     let canvasAtoms = [];
     let bonds = [];
     let nextId = 1;
 
+    // 주기율표 생성
     for (let period = 1; period <= 7; period++) {
       for (let group = 1; group <= 18; group++) {
         const cell = document.createElement('div');
-        const atomicNumber = Object.keys(elementsData).find(key => elementsData[key][3] === period && elementsData[key][2] === group);
+        
+        const atomicNumber = Object.keys(elementsData).find(key => {
+          const [symbol, name, elementGroup, elementPeriod] = elementsData[key];
+          return elementPeriod === period && elementGroup === group;
+        });
+
         if (atomicNumber && atomicNumber <= 36) {
-          const [symbol, name, _group, _period] = elementsData[atomicNumber];
+          const [symbol, name, elementGroup, elementPeriod] = elementsData[atomicNumber];
           cell.className = 'element';
-          cell.innerHTML = `<div class="atomic-number"><span class="math-inline">\{atomicNumber\}</div\></span>{symbol}<span>${name}</span>`;
-          cell.style.backgroundColor = periodColors[_period];
+          cell.innerHTML = `<div class="atomic-number">${atomicNumber}</div>${symbol}<span>${name}</span>`;
+          cell.style.backgroundColor = periodColors[elementPeriod];
           cell.dataset.symbol = symbol;
           cell.dataset.atomicNumber = atomicNumber;
+
           cell.draggable = true;
           cell.addEventListener('dragstart', (e) => {
-            e.dataTransfer.setData('text/plain', JSON.stringify({ symbol, name, atomicNumber, color: periodColors[_period] }));
+            e.dataTransfer.setData('text/plain', JSON.stringify({
+              symbol,
+              name,
+              atomicNumber,
+              color: periodColors[elementPeriod]
+            }));
           });
-          cell.addEventListener('click', () => showElementRecommendations(symbol));
+
+          cell.addEventListener('click', () => {
+            showElementRecommendations(symbol);
+          });
         } else {
           cell.className = 'empty';
         }
@@ -275,12 +326,22 @@ html_code = """
     canvas.addEventListener('drop', (e) => {
       const json = e.dataTransfer.getData('text/plain');
       if (!json) return;
+      
       const data = JSON.parse(json);
-      const { symbol, color, atomicNumber } = data;
-      createAtom(symbol, e.clientX - canvas.getBoundingClientRect().left - 20, e.clientY - canvas.getBoundingClientRect().top - 20, color, atomicNumber);
+      const { symbol, color, atomicNumber } = data; // name은 사용하지 않으므로 제거
+
+      createAtom( // atom 변수에 할당할 필요 없음
+        symbol, 
+        e.clientX - canvas.getBoundingClientRect().left - 20, 
+        e.clientY - canvas.getBoundingClientRect().top - 20,
+        color,
+        atomicNumber
+      );
+
       symbolCount[symbol] = (symbolCount[symbol] || 0) + 1;
       updateFormula();
       updateRecommendations();
+     // updateBonds는 createAtom 내부에서 호출됨
     });
 
     function createAtom(symbol, x, y, color, atomicNumber) {
@@ -293,173 +354,354 @@ html_code = """
       atom.dataset.symbol = symbol;
       atom.dataset.id = nextId++;
       atom.dataset.atomicNumber = atomicNumber;
-      atom.addEventListener('dblclick', () => {
-        const atomSymbol = atom.dataset.symbol;
-        symbolCount[atomSymbol]--;
-        if (symbolCount[atomSymbol] <= 0) delete symbolCount[atomSymbol];
-        canvasAtoms = canvasAtoms.filter(a => a !== atom);
-        atom.remove();
-        updateFormula(); updateBonds(); updateRecommendations();
-      });
+
+      // --- 더블클릭으로 원소 삭제 기능 추가 ---
+      atom.addEventListener('dblclick', () => {
+        // 드래그 중이었다면, 드래그 로직의 mouseup이 실행되지 않도록
+        // 강제로 mouseup 이벤트를 발생시켜 드래그 관련 리스너를 정리할 수 있습니다.
+        // 하지만 이 경우, dblclick 자체가 mousedown -> mouseup -> mousedown -> dblclick 순서로 발생하므로
+        // 복잡해질 수 있습니다. 여기서는 간단히 삭제 로직만 실행합니다.
+        // 만약 드래그 종료 시 삭제와 충돌한다면, 드래그 상태를 관리하는 플래그가 필요할 수 있습니다.
+
+        const atomSymbol = atom.dataset.symbol;
+        symbolCount[atomSymbol]--;
+        if (symbolCount[atomSymbol] <= 0) {
+            delete symbolCount[atomSymbol];
+        }
+        
+        canvasAtoms = canvasAtoms.filter(a => a !== atom); // 배열에서 제거
+        atom.remove(); // DOM에서 제거
+        
+        updateFormula();
+        updateBonds();
+        updateRecommendations();
+      });
+      // --- 더블클릭 삭제 기능 끝 ---
+
       enableDrag(atom);
       canvas.appendChild(atom);
+      
       canvasAtoms.push(atom);
-      updateBonds();
-      return atom;
+      updateBonds(); // 원자 추가 시 결합 업데이트
+      
+      return atom; // 여전히 반환은 유용할 수 있음 (예: loadConfiguration)
     }
 
     function enableDrag(el) {
       el.addEventListener('mousedown', (e) => {
-        if (e.button !== 0 || e.detail > 1) return;
+        if (e.button !== 0) return;
+        if (e.detail > 1) return; // 더블클릭의 일부인 mousedown은 무시 (선택적)
+        
         const shiftX = e.clientX - el.getBoundingClientRect().left;
         const shiftY = e.clientY - el.getBoundingClientRect().top;
+        
         el.style.zIndex = 1000;
-        let isDragging = false;
+        let isDragging = false; // 드래그 상태 플래그
+
         function moveAt(pageX, pageY) {
-          isDragging = true;
+          isDragging = true; // 움직임이 시작되면 드래그로 간주
           const canvasRect = canvas.getBoundingClientRect();
           let newX = pageX - canvasRect.left - shiftX;
           let newY = pageY - canvasRect.top - shiftY;
+          
+          // 경계 내 드래그 제한 (선택적: 원자가 캔버스 밖으로 완전히 나가지 않도록)
+          // newX = Math.max(0, Math.min(newX, canvasRect.width - el.offsetWidth));
+          // newY = Math.max(0, Math.min(newY, canvasRect.height - el.offsetHeight));
+
           el.style.left = newX + 'px';
           el.style.top = newY + 'px';
-          const elRect = el.getBoundingClientRect();
-          const elCenterX = elRect.left - canvasRect.left + elRect.width / 2;
-          const elCenterY = elRect.top - canvasRect.top + elRect.height / 2;
-          const isOutside = elCenterX < -(elRect.width / 4) || elCenterY < -(elRect.height / 4) || elCenterX > canvasRect.width + (elRect.width / 4) || elCenterY > canvasRect.height + (elRect.height / 4);
-          el.style.opacity = isOutside ? '0.5' : '1';
+          
+          const elRect = el.getBoundingClientRect();
+          const elCenterX = elRect.left - canvasRect.left + elRect.width / 2;
+          const elCenterY = elRect.top - canvasRect.top + elRect.height / 2;
+
+          const isOutside = 
+            elCenterX < - (elRect.width / 4) || // 약간의 여유를 둠
+            elCenterY < - (elRect.height / 4) ||
+            elCenterX > canvasRect.width + (elRect.width / 4) ||
+            elCenterY > canvasRect.height + (elRect.height / 4);
+          
+          if (isOutside) {
+            el.style.opacity = '0.5'; // 밖으로 나가면 투명도 조절
+          } else {
+            el.style.opacity = '1';
+          }
           updateBonds();
         }
-        const onMouseMove = (ev) => moveAt(ev.pageX, ev.pageY);
+
+        function onMouseMove(e) {
+          moveAt(e.pageX, e.pageY);
+        }
         document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', function onMouseUp() {
+        
+        document.addEventListener('mouseup', (e) => {
           document.removeEventListener('mousemove', onMouseMove);
-          document.removeEventListener('mouseup', onMouseUp); // 자기 자신도 제거
           el.style.zIndex = 10;
-          el.style.opacity = '1';
-          if (!isDragging) { updateBonds(); updateRecommendations(); return; }
+          el.style.opacity = '1'; // 드래그 종료 시 투명도 복원
+          
+          if (!isDragging) { // 드래그 없이 클릭만 한 경우 (mouseup)
+            updateBonds(); // 위치가 변경되지 않았어도 호출 (혹시 모를 상황 대비)
+            updateRecommendations(); // 추천 업데이트
+            return;
+          }
+          isDragging = false; // 드래그 상태 초기화
+
           const canvasRect = canvas.getBoundingClientRect();
-          const elRect = el.getBoundingClientRect();
-          const elCenterX = elRect.left - canvasRect.left + elRect.width / 2;
-          const elCenterY = elRect.top - canvasRect.top + elRect.height / 2;
-          if (elCenterX < -(elRect.width / 4) || elCenterY < -(elRect.height / 4) || elCenterX > canvasRect.width + (elRect.width / 4) || elCenterY > canvasRect.height + (elRect.height / 4)) {
+          const elRect = el.getBoundingClientRect();
+          const elCenterX = elRect.left - canvasRect.left + elRect.width / 2;
+          const elCenterY = elRect.top - canvasRect.top + elRect.height / 2;
+          
+          if (
+            elCenterX < - (elRect.width / 4) || 
+            elCenterY < - (elRect.height / 4) || 
+            elCenterX > canvasRect.width + (elRect.width / 4) || 
+            elCenterY > canvasRect.height + (elRect.height / 4)
+          ) {
             const symbol = el.dataset.symbol;
             symbolCount[symbol]--;
-            if (symbolCount[symbol] <= 0) delete symbolCount[symbol];
+            if (symbolCount[symbol] <= 0) {
+              delete symbolCount[symbol];
+            }
             canvasAtoms = canvasAtoms.filter(atom => atom !== el);
             el.remove();
           }
-          updateFormula(); updateBonds(); updateRecommendations();
-        });
+          
+          updateFormula();
+          updateBonds();
+          updateRecommendations();
+        }, { once: true });
       });
     }
 
     function updateFormula() {
-      if (Object.keys(symbolCount).length === 0) { formulaBox.textContent = '화학식을 여기에 보여줍니다'; return; }
-      const sortedSymbolEntries = Object.entries(symbolCount).sort((a, b) => {
-        const aNum = Object.keys(elementsData).find(key => elementsData[key][0] === a[0]);
-        const bNum = Object.keys(elementsData).find(key => elementsData[key][0] === b[0]);
-        return parseInt(aNum) - parseInt(bNum);
-      });
-      const formula = sortedSymbolEntries.map(([sym, count]) => `<span class="math-inline">\{sym\}</span>{count > 1 ? count : ''}`).join('');
-      let compoundName = commonCompounds[formula] ? ` (${commonCompounds[formula].name})` : '';
+      if (Object.keys(symbolCount).length === 0) {
+        formulaBox.textContent = '화학식을 여기에 보여줍니다';
+        return;
+      }
+      const sortedSymbolEntries = Object.entries(symbolCount)
+        .sort((a, b) => {
+          const aNum = Object.keys(elementsData).find(key => elementsData[key][0] === a[0]);
+          const bNum = Object.keys(elementsData).find(key => elementsData[key][0] === b[0]);
+          return parseInt(aNum) - parseInt(bNum); // 원자번호를 숫자로 비교
+        });
+
+      const formula = sortedSymbolEntries
+        .map(([sym, count]) => `${sym}${count > 1 ? count : ''}`)
+        .join('');
+
+      let compoundName = '';
+      if (commonCompounds[formula]) {
+        compoundName = ` (${commonCompounds[formula].name})`;
+      }
       formulaBox.textContent = formula + compoundName;
     }
 
     function updateBonds() {
       document.querySelectorAll('.bond, .bond-label').forEach(el => el.remove());
-      bonds = [];
+      bonds = []; // 배열 초기화
+      
       if (canvasAtoms.length < 2) return;
+      
       for (let i = 0; i < canvasAtoms.length; i++) {
-        for (let j = i + 1; j < canvasAtoms.length; j++) createBond(canvasAtoms[i], canvasAtoms[j]);
+        for (let j = i + 1; j < canvasAtoms.length; j++) {
+          const atom1 = canvasAtoms[i];
+          const atom2 = canvasAtoms[j];
+          createBond(atom1, atom2);
+        }
       }
     }
 
     function createBond(atom1, atom2) {
-      if (!atom1.parentElement || !atom2.parentElement) return;
-      const rect1 = atom1.getBoundingClientRect(), rect2 = atom2.getBoundingClientRect();
-      const canvasRect = canvas.getBoundingClientRect();
-      const x1 = rect1.left + rect1.width / 2 - canvasRect.left, y1 = rect1.top + rect1.height / 2 - canvasRect.top;
-      const x2 = rect2.left + rect2.width / 2 - canvasRect.left, y2 = rect2.top + rect2.height / 2 - canvasRect.top;
-      const dx = x2 - x1, dy = y2 - y1;
+      // atom1 또는 atom2가 DOM에 없는 경우 (예: 동시에 여러 개 삭제 시도) 방지
+      if (!atom1.parentElement || !atom2.parentElement) return;
+
+      const rect1 = atom1.getBoundingClientRect();
+      const rect2 = atom2.getBoundingClientRect();
+      const canvasRect = canvas.getBoundingClientRect(); // 캔버스 기준으로 좌표 계산
+      
+      const x1 = rect1.left + rect1.width / 2 - canvasRect.left;
+      const y1 = rect1.top + rect1.height / 2 - canvasRect.top;
+      const x2 = rect2.left + rect2.width / 2 - canvasRect.left;
+      const y2 = rect2.top + rect2.height / 2 - canvasRect.top;
+      
+      const dx = x2 - x1;
+      const dy = y2 - y1;
       const distance = Math.sqrt(dx * dx + dy * dy);
       const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-      const bondEl = document.createElement('div');
+      
+      const bondEl = document.createElement('div'); // 변수명 변경 (bonds 배열과 구분)
       bondEl.className = 'bond';
-      bondEl.style.cssText = `width:<span class="math-inline">\{distance\}px; left\:</span>{x1}px; top:<span class="math-inline">\{y1\}px; transform\:rotate\(</span>{angle}deg);`;
-      canvas.appendChild(bondEl); bonds.push(bondEl);
+      bondEl.style.width = `${distance}px`;
+      bondEl.style.left = `${x1}px`;
+      bondEl.style.top = `${y1}px`;
+      bondEl.style.transform = `rotate(${angle}deg)`;
+      
+      canvas.appendChild(bondEl);
+      bonds.push(bondEl); // 생성된 DOM 요소를 배열에 추가
+      
+      const symbol1 = atom1.dataset.symbol;
+      const symbol2 = atom2.dataset.symbol;
       const bondLabel = document.createElement('div');
       bondLabel.className = 'bond-label';
-      bondLabel.textContent = `<span class="math-inline">\{atom1\.dataset\.symbol\}\-</span>{atom2.dataset.symbol}`;
-      bondLabel.style.cssText = `left:<span class="math-inline">\{x1 \+ dx / 2 \- 15\}px; top\:</span>{y1 + dy / 2 - 8}px;`;
-      canvas.appendChild(bondLabel); bonds.push(bondLabel);
+      bondLabel.textContent = `${symbol1}-${symbol2}`;
+      bondLabel.style.left = `${x1 + dx / 2 - 15}px`; // 라벨 위치 미세 조정
+      bondLabel.style.top = `${y1 + dy / 2 - 8}px`;  // 라벨 위치 미세 조정
+      
+      canvas.appendChild(bondLabel);
+      bonds.push(bondLabel); // 라벨도 bonds 배열에 추가하여 일괄 삭제 관리
     }
 
     function showElementRecommendations(symbol) {
       const compounds = elementCompounds[symbol] || [];
-      if (compounds.length === 0) { recommendationsBox.innerHTML = `<h3>'${symbol}' 관련 화합물 추천</h3><p>추천 화합물이 없습니다.</p>`; return; }
+      
+      if (compounds.length === 0) {
+        recommendationsBox.innerHTML = `<h3>'${symbol}' 관련 화합물 추천</h3><p>추천 화합물이 없습니다.</p>`;
+        return;
+      }
+      
       let html = `<h3>'${symbol}' 관련 화합물 추천</h3>`;
       compounds.forEach(formula => {
-        html += `<div class="recommendation-item" data-formula="<span class="math-inline">\{formula\}"\></span>{formula}: ${commonCompounds[formula].name}</div>`;
+        const compound = commonCompounds[formula];
+        html += `<div class="recommendation-item" data-formula="${formula}">
+          ${formula}: ${compound.name}
+        </div>`;
       });
       recommendationsBox.innerHTML = html;
-      addRecommendationClickEvents();
-    }
-
-    function updateRecommendations() {
-      if (Object.keys(symbolCount).length === 0) { recommendationsBox.innerHTML = '<h3>화합물 추천</h3><p>원소를 먼저 추가하세요.</p>'; return; }
-      const currentSymbols = Object.keys(symbolCount);
-      let matchingCompounds = [];
-      Object.entries(commonCompounds).forEach(([formula, compound]) => {
-        if (currentSymbols.every(sym => Object.keys(compound.elements).includes(sym))) {
-          matchingCompounds.push({ formula, name: compound.name });
-        }
-      });
-      if (matchingCompounds.length === 0) { recommendationsBox.innerHTML = '<h3>화합물 추천</h3><p>추천 화합물이 없습니다.</p>'; return; }
-      let html = '<h3>가능한 화합물 추천</h3>';
-      matchingCompounds.forEach(({ formula, name }) => {
-        html += `<div class="recommendation-item" data-formula="<span class="math-inline">\{formula\}"\></span>{formula}: ${name}</div>`;
-      });
-      recommendationsBox.innerHTML = html;
-      addRecommendationClickEvents();
-    }
-
-    function addRecommendationClickEvents() {
+      
       document.querySelectorAll('.recommendation-item').forEach(item => {
         item.addEventListener('click', () => {
           const formula = item.dataset.formula;
           const compound = commonCompounds[formula];
+          
           resetCanvas();
-          let posX = 50, posY = 100;
-          Object.entries(compound.elements).forEach(([sym, count]) => {
+          
+          const compoundElements = compound.elements; // 변수명 변경
+          let posX = 50;
+          let posY = 100;
+          
+          Object.entries(compoundElements).forEach(([sym, count]) => {
             const atomicNumStr = Object.keys(elementsData).find(key => elementsData[key][0] === sym);
-            if (!atomicNumStr) return;
-            const atomicNumber = parseInt(atomicNumStr);
-            const [_s, _n, _g, period] = elementsData[atomicNumber];
+            if (!atomicNumStr) return; // 해당 원소 정보 없으면 스킵
+            const atomicNumber = parseInt(atomicNumStr); // 숫자로 변환
+            
+            const [_symbol, _name, _group, period] = elementsData[atomicNumber]; // symbol, name, group은 여기서 사용 안함
             const color = periodColors[period];
+            
             for (let i = 0; i < count; i++) {
-              createAtom(sym, posX, posY, color, atomicNumber);
+              createAtom(sym, posX, posY, color, atomicNumber); // sym 사용
               symbolCount[sym] = (symbolCount[sym] || 0) + 1;
-              posX += 60; if (posX > canvas.offsetWidth - 60) { posX = 50; posY += 60; }
+              
+              posX += 60;
+              if (posX > canvas.offsetWidth - 60) {
+                posX = 50;
+                posY += 60;
+              }
             }
           });
+          
           updateFormula();
+          // updateBonds는 createAtom 내부에서 호출되어 이미 처리됨
         });
       });
     }
 
+    function updateRecommendations() {
+      if (Object.keys(symbolCount).length === 0) {
+        recommendationsBox.innerHTML = '<h3>화합물 추천</h3><p>원소를 먼저 추가하세요.</p>';
+        return;
+      }
+      
+      const currentSymbols = Object.keys(symbolCount);
+      let matchingCompounds = [];
+      
+      Object.entries(commonCompounds).forEach(([formula, compound]) => {
+        const compoundSymbols = Object.keys(compound.elements);
+        const isSubset = currentSymbols.every(sym => compoundSymbols.includes(sym));
+        
+        if (isSubset) {
+          // 현재 캔버스의 원소 개수와 화합물의 원소 개수가 일치하는지 (또는 더 많은지) 추가로 확인 가능
+          // 여기서는 단순히 현재 원소들이 화합물 구성에 포함되는지만 체크
+          matchingCompounds.push({ formula, name: compound.name });
+        }
+      });
+      
+      if (matchingCompounds.length === 0) {
+        recommendationsBox.innerHTML = '<h3>화합물 추천</h3><p>추천 화합물이 없습니다.</p>';
+        return;
+      }
+      
+      let html = '<h3>가능한 화합물 추천</h3>';
+      matchingCompounds.forEach(({ formula, name }) => {
+        html += `<div class="recommendation-item" data-formula="${formula}">
+          ${formula}: ${name}
+        </div>`;
+      });
+      recommendationsBox.innerHTML = html;
+      
+      // 추천 아이템 클릭 이벤트 (showElementRecommendations 내부와 중복되므로 함수로 분리 가능)
+      addRecommendationClickEvents();
+    }
+
+    function addRecommendationClickEvents() {
+        document.querySelectorAll('.recommendation-item').forEach(item => {
+            item.addEventListener('click', () => {
+              const formula = item.dataset.formula;
+              const compound = commonCompounds[formula];
+              
+              resetCanvas();
+              
+              const compoundElements = compound.elements; // 변수명 변경
+              let posX = 50;
+              let posY = 100;
+              
+              Object.entries(compoundElements).forEach(([sym, count]) => {
+                const atomicNumStr = Object.keys(elementsData).find(key => elementsData[key][0] === sym);
+                if (!atomicNumStr) return;
+                  const atomicNumber = parseInt(atomicNumStr);
+                
+                const [_symbol, _name, _group, period] = elementsData[atomicNumber];
+                const color = periodColors[period];
+                
+                for (let i = 0; i < count; i++) {
+                  createAtom(sym, posX, posY, color, atomicNumber);
+                  symbolCount[sym] = (symbolCount[sym] || 0) + 1;
+                  
+                  posX += 60;
+                  if (posX > canvas.offsetWidth - 60) {
+                    posX = 50;
+                    posY += 60;
+                  }
+                }
+              });
+              
+              updateFormula();
+                // updateBonds는 createAtom 호출 시 처리됨
+            });
+        });
+    }
+
+
     function resetCanvas() {
       document.querySelectorAll('.atom, .bond, .bond-label').forEach(el => el.remove());
-      canvasAtoms = []; bonds = []; symbolCount = {}; nextId = 1;
-      updateFormula(); updateRecommendations();
+      canvasAtoms = [];
+      bonds = [];
+      symbolCount = {};
+      nextId = 1; // ID 재설정
+      updateFormula();
+      updateRecommendations(); // 초기화 후 추천 업데이트
     }
 
     function saveConfiguration() {
       const configuration = {
         atoms: canvasAtoms.map(atom => ({
-          symbol: atom.dataset.symbol, x: parseFloat(atom.style.left), y: parseFloat(atom.style.top),
-          color: atom.style.backgroundColor, atomicNumber: atom.dataset.atomicNumber
+          symbol: atom.dataset.symbol,
+          x: parseFloat(atom.style.left),
+          y: parseFloat(atom.style.top),
+          color: atom.style.backgroundColor,
+          atomicNumber: atom.dataset.atomicNumber
         })),
-        formula: formulaBox.textContent, nextId: nextId
+        formula: formulaBox.textContent,
+        nextId: nextId // nextId도 저장
       };
       localStorage.setItem('chemSimulatorConfig', JSON.stringify(configuration));
       alert('현재 상태가 저장되었습니다.');
@@ -468,40 +710,38 @@ html_code = """
     function loadConfiguration() {
       const savedConfig = localStorage.getItem('chemSimulatorConfig');
       if (!savedConfig) return;
+      
       const configuration = JSON.parse(savedConfig);
-      resetCanvas();
-      nextId = configuration.nextId || 1;
-      configuration.atoms.forEach(atomData => {
-        createAtom(atomData.symbol, atomData.x, atomData.y, atomData.color, atomData.atomicNumber);
+      
+      resetCanvas(); // 먼저 캔버스 초기화
+      
+      nextId = configuration.nextId || 1; // nextId 불러오기
+      configuration.atoms.forEach(atomData => { // 변수명 atomData로 변경
+        createAtom( // newAtom 변수 불필요
+          atomData.symbol,
+          atomData.x,
+          atomData.y,
+          atomData.color,
+          atomData.atomicNumber
+        );
+        
         symbolCount[atomData.symbol] = (symbolCount[atomData.symbol] || 0) + 1;
       });
-      updateFormula(); updateRecommendations();
+      
+      updateFormula();
+      // updateBonds는 createAtom에서 처리
+      updateRecommendations();
     }
 
     saveBtn.addEventListener('click', saveConfiguration);
     resetBtn.addEventListener('click', resetCanvas);
 
     window.addEventListener('load', () => {
-      updateRecommendations();
-      if (localStorage.getItem('chemSimulatorConfig')) loadConfiguration();
+      updateRecommendations(); // 초기 추천 목록 (비어있음)
+      if (localStorage.getItem('chemSimulatorConfig')) {
+        loadConfiguration();
+      }
     });
   </script>
 </body>
 </html>
-"""
-
-# Streamlit 페이지 설정 (선택 사항)
-st.set_page_config(layout="wide") # 넓은 레이아웃 사용
-
-st.title("Streamlit 화학식 시뮬레이터")
-
-# HTML 컴포넌트 삽입
-# height는 iframe의 높이를 지정합니다. 내용에 맞게 적절히 조절해야 합니다.
-# scrolling=True를 하면 내용이 넘칠 경우 스크롤바가 생깁니다.
-st.html(html_code, height=700, scrolling=True)
-
-# 여기에 다른 Streamlit 위젯들을 추가할 수도 있습니다.
-st.sidebar.header("Streamlit Controls")
-name = st.sidebar.text_input("Your Name")
-if name:
-    st.sidebar.write(f"Hello, {name}!")
